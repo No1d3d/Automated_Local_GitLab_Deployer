@@ -1,0 +1,14 @@
+---
+# =============================================================================
+#  EXAMPLE Ansible Vault file - copy to vars/vault.yml and encrypt it.
+# =============================================================================
+#  Encrypt it with:
+#      ansible-vault encrypt vars/vault.yml
+#  Edit it later with:
+#      ansible-vault edit vars/vault.yml
+#  Run the playbook with:
+#      ansible-playbook deploy.yml --ask-vault-pass
+#
+#  vars/vault.yml is git-ignored - the plaintext never leaves your machine.
+# =============================================================================
+vault_gitlab_root_password: "ChangeMe-To-A-Strong-Passphrase"

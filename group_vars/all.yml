@@ -1,0 +1,66 @@
+---
+# =============================================================================
+#  Automated Local GitLab Deployer - central configuration
+#  Everything tunable lives here. Values marked (vault) should be overridden
+#  with an encrypted Ansible Vault file in production (see README).
+# =============================================================================
+
+# ---- GitLab application ------------------------------------------------------
+gitlab_edition: ce                                   # ce (community) | ee (enterprise)
+gitlab_version: "19.5.3-ce.0"                         # pinned image tag
+gitlab_image: "docker.io/gitlab/gitlab-{{ gitlab_edition }}:{{ gitlab_version }}"
+
+gitlab_hostname: gitlab.local                         # cosmetic hostname of the container
+gitlab_http_port: 80                                  # published HTTP  port -> container 80
+gitlab_https_port: 443                                # published HTTPS port -> container 443
+gitlab_ssh_port: 2222                                 # published SSH   port -> container 22
+# IP GitLab is reachable on. Auto-detected at deploy time; override to pin it.
+gitlab_access_ip: ""
+gitlab_external_url: "http://{{ gitlab_access_ip }}"
+
+gitlab_root_email: "root@{{ gitlab_hostname }}"
+# Initial root password - sourced from Ansible Vault only (vars/vault.yml).
+# If unset, GitLab generates one and writes it to config/initial_root_password.
+gitlab_root_password: "{{ vault_gitlab_root_password | default('') }}"
+
+# ---- 30 GB HARD CAP for the whole GitLab footprint --------------------------
+# A dedicated, loop-mounted ext4 filesystem caps IMAGE + DATA + VOLUMES at 30 GB.
+# Podman's storage root (graphroot) is pointed at it, so nothing GitLab touches
+# can ever exceed this size.
+gitlab_storage_size_gb: 30
+gitlab_storage_type: loopback                         # loopback | existing
+gitlab_storage_mount: /srv/gitlab-deployer            # mountpoint of the 30 GB fs
+gitlab_loop_file: /var/lib/gitlab-deployer/gitlab-storage.img
+gitlab_data_dir: "{{ gitlab_storage_mount }}/gitlab"
+gitlab_podman_graphroot: "{{ gitlab_storage_mount }}/containers"
+
+# ---- Podman pod / networking ------------------------------------------------
+gitlab_pod_name: gitlab
+
+# ---- Derived container spec (do not normally edit) --------------------------
+gitlab_pod_ports:
+  - "{{ gitlab_http_port }}:80"
+  - "{{ gitlab_https_port }}:443"
+  - "{{ gitlab_ssh_port }}:22"
+
+gitlab_container_volumes:
+  - "{{ gitlab_data_dir }}/config:/etc/gitlab"
+  - "{{ gitlab_data_dir }}/logs:/var/log/gitlab"
+  - "{{ gitlab_data_dir }}/data:/var/opt/gitlab"
+
+gitlab_omnibus_config: |
+  external_url '{{ gitlab_external_url }}';
+  nginx['listen_port'] = 80;
+  nginx['listen_https'] = false;
+  gitlab_rails['gitlab_shell_ssh_port'] = {{ gitlab_ssh_port }};
+  # Health endpoints (/-/health, /-/readiness) are IP-allowlisted. Requests from
+  # the host arrive via the pod gateway (10.88.0.1), so allow the pod subnet.
+  gitlab_rails['monitoring_whitelist'] = ['127.0.0.1', '::1', '10.88.0.0/16', '{{ gitlab_access_ip }}/32'];
+  letsencrypt['enable'] = false;
+
+gitlab_base_env:
+  GITLAB_OMNIBUS_CONFIG: "{{ gitlab_omnibus_config }}"
+  GITLAB_ROOT_EMAIL: "{{ gitlab_root_email }}"
+
+# Only pass GITLAB_ROOT_PASSWORD when a value is supplied (via Vault).
+gitlab_container_env: "{{ gitlab_base_env | combine({'GITLAB_ROOT_PASSWORD': gitlab_root_password} if (gitlab_root_password | length > 0) else {}) }}"

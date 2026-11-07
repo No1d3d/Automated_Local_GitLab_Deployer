@@ -1,0 +1,13 @@
+---
+# The canonical configuration lives in group_vars/all.yml so that both
+# deploy.yml and destroy.yml can read it. This file documents the keys the
+# role consumes; override any of them in group_vars/all.yml.
+#
+#   gitlab_edition, gitlab_version, gitlab_image,
+#   gitlab_hostname, gitlab_http_port, gitlab_https_port, gitlab_ssh_port,
+#   gitlab_external_url, gitlab_root_email, gitlab_root_password,
+#   gitlab_storage_size_gb, gitlab_storage_type, gitlab_storage_mount,
+#   gitlab_loop_file, gitlab_data_dir, gitlab_podman_graphroot,
+#   gitlab_pod_name, gitlab_pod_ports, gitlab_container_volumes,
+#   gitlab_omnibus_config, gitlab_base_env, gitlab_container_env
+{}

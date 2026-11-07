@@ -1,0 +1,34 @@
+---
+- name: Create the GitLab Podman pod (publishes ports, shared net namespace)
+  containers.podman.podman_pod:
+    name: "{{ gitlab_pod_name }}"
+    state: started
+    publish: "{{ gitlab_pod_ports }}"
+  become: true
+  register: gitlab_pod
+
+- name: Deploy the GitLab container inside the pod
+  containers.podman.podman_container:
+    name: gitlab
+    image: "{{ gitlab_image }}"
+    pod: "{{ gitlab_pod_name }}"
+    env: "{{ gitlab_container_env }}"
+    volume: "{{ gitlab_container_volumes }}"
+    restart_policy: always
+    state: started
+  become: true
+  register: gitlab_container
+
+- name: Install the GitLab pod systemd unit (boot persistence)
+  ansible.builtin.template:
+    src: gitlab-pod.service.j2
+    dest: /etc/systemd/system/gitlab-pod.service
+    mode: "0644"
+  become: true
+
+- name: Enable the GitLab pod unit at boot
+  ansible.builtin.systemd:
+    name: gitlab-pod.service
+    enabled: true
+    daemon_reload: true
+  become: true

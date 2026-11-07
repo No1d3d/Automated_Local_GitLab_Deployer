@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  role_name: gitlab_podman
+  author: DevOps
+  description: Deploy a local GitLab instance in a Podman pod with a 30 GB hard cap.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions: [jammy, noble, resolute]
+    - name: Debian
+      versions: [bookworm]
+    - name: EL
+      versions: ["9"]
+  galaxy_tags:
+    - gitlab
+    - podman
+    - containers
+dependencies: []

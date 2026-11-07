@@ -1,0 +1,14 @@
+[Unit]
+Description=GitLab (Podman pod {{ gitlab_pod_name }})
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c '/usr/bin/podman pod start {{ gitlab_pod_name }} || true'
+ExecStop=/bin/sh -c '/usr/bin/podman pod stop -t 30 {{ gitlab_pod_name }} || true'
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

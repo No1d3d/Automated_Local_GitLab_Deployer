@@ -1,0 +1,38 @@
+---
+# Tear down the GitLab deployment. Data on the 30 GB filesystem is KEPT by
+# default so it can be re-attached; remove the loop image manually to reclaim it.
+- name: Remove local GitLab deployment
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Remove the GitLab pod and its containers
+      containers.podman.podman_pod:
+        name: "{{ gitlab_pod_name }}"
+        state: absent
+      become: true
+
+    - name: Remove the GitLab container (if it outlived the pod)
+      containers.podman.podman_container:
+        name: gitlab
+        state: absent
+      become: true
+
+    - name: Remove the GitLab pod systemd unit
+      ansible.builtin.file:
+        path: /etc/systemd/system/gitlab-pod.service
+        state: absent
+      become: true
+
+    - name: Unmount the 30 GB filesystem
+      ansible.posix.mount:
+        path: "{{ gitlab_storage_mount }}"
+        state: unmounted
+      become: true
+
+    - name: Result
+      ansible.builtin.debug:
+        msg: >-
+          GitLab pod, container and unit removed. Persistent data on
+          {{ gitlab_storage_mount }} and backing image {{ gitlab_loop_file }}
+          were intentionally KEPT. Delete the image file to reclaim the 30 GB.

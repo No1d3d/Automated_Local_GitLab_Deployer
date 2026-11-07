@@ -1,0 +1,106 @@
+---
+- name: Ensure the loop-backing directory exists
+  ansible.builtin.file:
+    path: "{{ gitlab_loop_file | dirname }}"
+    state: directory
+    mode: "0700"
+  become: true
+  when: gitlab_storage_type == 'loopback'
+
+- name: Check whether the backing image already exists
+  ansible.builtin.stat:
+    path: "{{ gitlab_loop_file }}"
+  register: gitlab_loop_stat
+  become: true
+  when: gitlab_storage_type == 'loopback'
+
+- name: Create the sparse {{ gitlab_storage_size_gb }} GB backing image
+  ansible.builtin.command: "truncate -s {{ gitlab_storage_size_gb }}G {{ gitlab_loop_file }}"
+  args:
+    creates: "{{ gitlab_loop_file }}"
+  become: true
+  when: gitlab_storage_type == 'loopback'
+
+- name: Format the backing image with ext4
+  ansible.builtin.command: "mkfs.ext4 -F -q -L gitlab-storage {{ gitlab_loop_file }}"
+  become: true
+  changed_when: true
+  when:
+    - gitlab_storage_type == 'loopback'
+    - not gitlab_loop_stat.stat.exists
+
+- name: Ensure the storage mountpoint exists
+  ansible.builtin.file:
+    path: "{{ gitlab_storage_mount }}"
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Mount the {{ gitlab_storage_size_gb }} GB filesystem (loopback)
+  ansible.posix.mount:
+    path: "{{ gitlab_storage_mount }}"
+    src: "{{ gitlab_loop_file }}"
+    fstype: ext4
+    opts: loop,defaults
+    state: mounted
+  become: true
+  when: gitlab_storage_type == 'loopback'
+
+- name: Create GitLab data directories on the capped filesystem
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ gitlab_data_dir }}"
+    - "{{ gitlab_data_dir }}/config"
+    - "{{ gitlab_data_dir }}/logs"
+    - "{{ gitlab_data_dir }}/data"
+    - "{{ gitlab_podman_graphroot }}"
+  become: true
+
+# Podman only merges /etc/containers/storage.conf.d/*.conf when the base config
+# /etc/containers/storage.conf exists. On Ubuntu that file is absent (only the
+# vendor copy at /usr/share/containers/storage.conf ships), so we seed it first
+# and then set graphroot/runroot explicitly.
+- name: Check for a base containers-storage config
+  ansible.builtin.stat:
+    path: /etc/containers/storage.conf
+  register: gitlab_storage_conf
+  become: true
+
+- name: Seed /etc/containers/storage.conf from the vendor default
+  ansible.builtin.copy:
+    src: /usr/share/containers/storage.conf
+    dest: /etc/containers/storage.conf
+    remote_src: true
+    mode: "0644"
+  become: true
+  when: not gitlab_storage_conf.stat.exists
+
+- name: Use the overlay storage driver
+  ansible.builtin.lineinfile:
+    path: /etc/containers/storage.conf
+    regexp: '^#?\s*driver\s*='
+    line: 'driver = "overlay"'
+  become: true
+
+- name: Point Podman graphroot at the 30 GB filesystem
+  ansible.builtin.lineinfile:
+    path: /etc/containers/storage.conf
+    regexp: '^#?\s*graphroot\s*='
+    line: 'graphroot = "{{ gitlab_podman_graphroot }}"'
+  become: true
+
+- name: Point Podman runroot at tmpfs
+  ansible.builtin.lineinfile:
+    path: /etc/containers/storage.conf
+    regexp: '^#?\s*runroot\s*='
+    line: 'runroot = "/run/containers/storage"'
+  become: true
+
+- name: Remove the obsolete drop-in (superseded by /etc/containers/storage.conf)
+  ansible.builtin.file:
+    path: /etc/containers/storage.conf.d/10-gitlab-deployer.conf
+    state: absent
+  become: true

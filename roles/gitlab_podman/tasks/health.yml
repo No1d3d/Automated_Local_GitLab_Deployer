@@ -1,0 +1,37 @@
+---
+# GitLab performs a full `gitlab-ctl reconfigure` on first boot which can take
+# 5-15 minutes. Poll the sign-in page until it returns HTTP 200 (the /-/health
+# and /-/readiness endpoints are IP-allowlisted and unreliable through the pod
+# NAT, so we gate on the real UI instead).
+- name: Wait for GitLab to finish first-boot configuration (sign-in page up)
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ gitlab_http_port }}/users/sign_in"
+    status_code: 200
+  register: gitlab_ui
+  until: gitlab_ui.status | default(0) == 200
+  retries: 120
+  delay: 15
+  changed_when: false
+
+- name: Verify GitLab responds on the root path (200 or redirect to sign-in)
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ gitlab_http_port }}/"
+    follow_redirects: none
+    status_code: [200, 302]
+    timeout: 60
+  register: gitlab_root
+  retries: 5
+  delay: 10
+  until: gitlab_root.status | default(0) in [200, 302]
+  changed_when: false
+
+- name: Show access information
+  ansible.builtin.debug:
+    msg:
+      - "GitLab is UP  : {{ gitlab_external_url }}   (open in a browser)"
+      - "IP address    : {{ gitlab_access_ip }}"
+      - "Local URL     : http://127.0.0.1:{{ gitlab_http_port }}"
+      - "Git over SSH  : ssh://git@{{ gitlab_access_ip }}:{{ gitlab_ssh_port }}"
+      - "Root user     : root"
+      - "Root password : set via Ansible Vault (else config/initial_root_password)"
+      - "Footprint cap : {{ gitlab_storage_size_gb }} GB on {{ gitlab_storage_mount }}"

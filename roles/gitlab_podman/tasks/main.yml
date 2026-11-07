@@ -1,0 +1,25 @@
+---
+- name: Detect the IP address GitLab will be reachable on
+  ansible.builtin.set_fact:
+    gitlab_access_ip: "{{ (gitlab_access_candidates | first) if (gitlab_access_candidates | length > 0) else ansible_facts['default_ipv4']['address'] }}"
+  vars:
+    gitlab_access_candidates: >-
+      {{ ansible_facts['all_ipv4_addresses']
+         | reject('match', '^127\.')
+         | reject('match', '^10\.0\.2\.')
+         | reject('match', '^10\.99\.')
+         | reject('match', '^10\.88\.')
+         | reject('match', '^172\.(1[6-9]|2[0-9]|3[01])\.')
+         | list }}
+
+- name: Install and verify Podman
+  ansible.builtin.import_tasks: prerequisites.yml
+
+- name: Provision the 30 GB storage backing GitLab
+  ansible.builtin.import_tasks: storage.yml
+
+- name: Deploy the GitLab pod and container
+  ansible.builtin.import_tasks: deploy.yml
+
+- name: Verify GitLab is healthy
+  ansible.builtin.import_tasks: health.yml

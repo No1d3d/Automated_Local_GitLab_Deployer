@@ -1,0 +1,47 @@
+---
+- name: Check whether Podman is already installed
+  ansible.builtin.stat:
+    path: /usr/bin/podman
+  register: gitlab_podman_bin
+
+- name: Refresh the apt cache (best-effort; tolerates broken third-party repos)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  register: gitlab_apt_cache
+  become: true
+  failed_when: false
+  when:
+    - ansible_os_family == 'Debian'
+    - not gitlab_podman_bin.stat.exists
+
+- name: Install Podman and helpers (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name:
+      - podman
+      - uidmap
+      - fuse-overlayfs
+    state: present
+  become: true
+  when:
+    - ansible_os_family == 'Debian'
+    - not gitlab_podman_bin.stat.exists
+
+- name: Install Podman (RHEL/Fedora)
+  ansible.builtin.dnf:
+    name:
+      - podman
+    state: present
+  become: true
+  when:
+    - ansible_os_family == 'RedHat'
+    - not gitlab_podman_bin.stat.exists
+
+- name: Query installed Podman version
+  ansible.builtin.command: podman --version
+  register: gitlab_podman_version
+  changed_when: false
+
+- name: Report Podman version
+  ansible.builtin.debug:
+    msg: "{{ gitlab_podman_version.stdout }}"
