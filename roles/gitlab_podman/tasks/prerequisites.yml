@@ -21,6 +21,7 @@
       - podman
       - uidmap
       - fuse-overlayfs
+      - e2fsprogs
     state: present
   become: true
   when:
@@ -31,10 +32,22 @@
   ansible.builtin.dnf:
     name:
       - podman
+      - e2fsprogs
     state: present
   become: true
   when:
     - ansible_os_family == 'RedHat'
+    - not gitlab_podman_bin.stat.exists
+
+- name: Install Podman (other distributions - SUSE, Arch, etc.)
+  ansible.builtin.package:
+    name:
+      - podman
+      - e2fsprogs
+    state: present
+  become: true
+  when:
+    - ansible_os_family not in ['Debian', 'RedHat']
     - not gitlab_podman_bin.stat.exists
 
 - name: Query installed Podman version

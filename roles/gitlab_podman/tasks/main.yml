@@ -21,5 +21,8 @@
 - name: Deploy the GitLab pod and container
   ansible.builtin.import_tasks: deploy.yml
 
+- name: Open the published ports in the host firewall
+  ansible.builtin.import_tasks: firewall.yml
+
 - name: Verify GitLab is healthy
   ansible.builtin.import_tasks: health.yml

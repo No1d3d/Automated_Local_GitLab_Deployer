@@ -1,0 +1,42 @@
+---
+# Open the published GitLab ports in whichever host firewall is active.
+# Best-effort: a host with no active (or no) firewall simply skips these.
+
+- name: Check whether firewalld is active
+  ansible.builtin.command: systemctl is-active firewalld
+  register: gitlab_firewalld_state
+  become: true
+  changed_when: false
+  failed_when: false
+
+- name: Open GitLab ports in firewalld
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - "{{ gitlab_http_port }}"
+    - "{{ gitlab_https_port }}"
+    - "{{ gitlab_ssh_port }}"
+  become: true
+  when: (gitlab_firewalld_state.stdout | default('')) == 'active'
+
+- name: Check whether ufw is active
+  ansible.builtin.command: ufw status
+  register: gitlab_ufw_state
+  become: true
+  changed_when: false
+  failed_when: false
+
+- name: Open GitLab ports in ufw
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "{{ gitlab_http_port }}"
+    - "{{ gitlab_https_port }}"
+    - "{{ gitlab_ssh_port }}"
+  become: true
+  when: "'Status: active' in (gitlab_ufw_state.stdout | default(''))"

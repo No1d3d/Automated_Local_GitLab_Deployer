@@ -4,5 +4,7 @@
 collections:
   - name: containers.podman   # podman_network / podman_container / podman_volume
     version: ">=1.12.0"
-  - name: ansible.posix       # mount module (loop-mounted 30 GB filesystem)
+  - name: ansible.posix       # mount + firewalld modules
     version: ">=1.5.0"
+  - name: community.general    # ufw module (firewall on Debian/Ubuntu)
+    version: ">=8.0.0"

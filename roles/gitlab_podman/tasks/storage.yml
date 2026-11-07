@@ -14,6 +14,27 @@
   become: true
   when: gitlab_storage_type == 'loopback'
 
+- name: Measure free space on the backing-image directory
+  ansible.builtin.command: "df -B1 --output=avail {{ gitlab_loop_file | dirname }}"
+  register: gitlab_df_avail
+  changed_when: false
+  when:
+    - gitlab_storage_type == 'loopback'
+    - not gitlab_loop_stat.stat.exists
+
+- name: Assert there is room for the {{ gitlab_storage_size_gb }} GB backing image
+  ansible.builtin.assert:
+    that:
+      - (gitlab_df_avail.stdout_lines[-1] | trim | int) >= (gitlab_storage_size_gb | int * 1073741824)
+    fail_msg: >-
+      Not enough free space on {{ gitlab_loop_file | dirname }} for a
+      {{ gitlab_storage_size_gb }} GB backing image. Free up space, or point
+      gitlab_loop_file and gitlab_storage_mount at a larger volume.
+    quiet: true
+  when:
+    - gitlab_storage_type == 'loopback'
+    - not gitlab_loop_stat.stat.exists
+
 - name: Create the sparse {{ gitlab_storage_size_gb }} GB backing image
   ansible.builtin.command: "truncate -s {{ gitlab_storage_size_gb }}G {{ gitlab_loop_file }}"
   args:

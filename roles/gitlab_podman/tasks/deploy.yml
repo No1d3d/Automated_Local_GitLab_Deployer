@@ -1,4 +1,12 @@
 ---
+- name: Detect SELinux enforcing mode
+  ansible.builtin.set_fact:
+    gitlab_selinux_enforcing: "{{ (ansible_selinux.status | default('disabled')) == 'enabled' }}"
+
+- name: Compute volume mounts (add :Z relabel when SELinux is enforcing)
+  ansible.builtin.set_fact:
+    gitlab_container_volumes_mounted: "{{ gitlab_container_volumes | map('regex_replace', '$', ':Z') | list if (gitlab_selinux_enforcing | bool) else gitlab_container_volumes }}"
+
 - name: Create the GitLab Podman pod (publishes ports, shared net namespace)
   containers.podman.podman_pod:
     name: "{{ gitlab_pod_name }}"
@@ -13,7 +21,7 @@
     image: "{{ gitlab_image }}"
     pod: "{{ gitlab_pod_name }}"
     env: "{{ gitlab_container_env }}"
-    volume: "{{ gitlab_container_volumes }}"
+    volume: "{{ gitlab_container_volumes_mounted }}"
     restart_policy: always
     state: started
   become: true

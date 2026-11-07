@@ -14,7 +14,8 @@ gitlab_hostname: gitlab.local                         # cosmetic hostname of the
 gitlab_http_port: 80                                  # published HTTP  port -> container 80
 gitlab_https_port: 443                                # published HTTPS port -> container 443
 gitlab_ssh_port: 2222                                 # published SSH   port -> container 22
-# IP GitLab is reachable on. Auto-detected at deploy time; override to pin it.
+# IP/DNS GitLab is advertised on. Auto-detected from the interface; on cloud
+# (where the public IP is NAT'd) set this to the public IP or DNS name.
 gitlab_access_ip: ""
 gitlab_external_url: "http://{{ gitlab_access_ip }}"
 

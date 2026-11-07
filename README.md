@@ -89,6 +89,19 @@ A sparse 30 GB ext4 image is loop-mounted at `gitlab_storage_mount`. Podman's
 sudo make status   # df of the 30 GB filesystem
 ```
 
+## Other distros and cloud
+
+- **Debian/Ubuntu, RHEL/Fedora:** supported. SELinux relabeling (`:Z`) and
+  firewalld/ufw port opening are applied automatically when detected.
+- **Other systemd distros (openSUSE, Arch, ...):** Podman is installed through
+  the generic package manager; expected to work.
+- **Cloud VM:** works on a Debian/Ubuntu VM once it is sized for GitLab
+  (>= 4-8 GB RAM, about 34 GB free on the volume that holds the 30 GB image),
+  the ports 80/443/2222 are open, and `gitlab_access_ip` is set to the public
+  IP or DNS name (the auto-detected address is the private interface IP).
+- **Not supported:** rootless/managed container platforms (ECS, Cloud Run, AKS,
+  GKE) or distros without systemd.
+
 ## Security
 
 - The root password is never stored in the repo: set it through Ansible Vault
@@ -102,7 +115,7 @@ ansible.cfg  requirements.yml  deploy.yml  destroy.yml  Makefile
 inventory/hosts.yml         # localhost (connection: local)
 group_vars/all.yml          # all configuration lives here
 roles/gitlab_podman/
-  tasks/{main,prerequisites,storage,deploy,health}.yml
+  tasks/{main,prerequisites,storage,deploy,firewall,health}.yml
   templates/gitlab-pod.service.j2
   defaults/main.yml  meta/main.yml
 vars/vault.example.yml      # copy -> vars/vault.yml and encrypt
