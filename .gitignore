@@ -1,0 +1,15 @@
+# Ansible
+inventory.ini
+*.vault_pass
+vault_pass.txt
+*.retry
+vars/vault.yml
+
+# Ansible runtime artifacts
+.ansible/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.log
